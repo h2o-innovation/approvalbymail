@@ -40,6 +40,7 @@ php bin/console plugin:activate           approvalbymail
 
 Após ativar, acesse **Configurar → Geral → Approval by Mail** para:
 - Ativar/desativar os tipos de aprovação (validação, solução)
+- Ativar/desativar a **descrição do chamado** na página e no e-mail de aprovação
 - Configurar a **URL da logo** da empresa (exibida na página de aprovação)
 
 ## Ambiente de desenvolvimento com Docker
@@ -67,6 +68,9 @@ Tags disponíveis no corpo:
 
 - `##approvalbymail.url##` — link da página de decisão (uso único)
 - `##approvalbymail.tickettitle##` — título do chamado
+- `##approvalbymail.ticketdescription##` — descrição do chamado (respeita o flag
+  *Mostrar descrição do chamado*; use `##IFapprovalbymail.ticketdescription##` /
+  `##ENDIFapprovalbymail.ticketdescription##` para omitir o bloco quando vazio)
 
 ### Configuração SMTP (desenvolvimento)
 

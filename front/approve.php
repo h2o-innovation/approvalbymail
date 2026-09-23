@@ -127,6 +127,7 @@ function abm_render_form(
     int $ticket_id,
     string $ticket_title,
     string $submission_html,
+    string $ticket_description_html = '',
     string $error = ''
 ): void {
     $title = $ticket_title !== '' ? $ticket_title : '(sem título)';
@@ -137,6 +138,10 @@ function abm_render_form(
     $b .= '<div class="abm-ticket"><strong>#' . $ticket_id . '</strong> &mdash; '
         . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</div>';
 
+    if ($ticket_description_html !== '') {
+        $b .= '<label>Descrição do chamado</label>';
+        $b .= '<div class="abm-submission">' . $ticket_description_html . '</div>';
+    }
     if ($submission_html !== '') {
         $b .= '<label>Mensagem do solicitante</label>';
         $b .= '<div class="abm-submission">' . $submission_html . '</div>';
@@ -159,6 +164,7 @@ function abm_render_solution_form(
     int $ticket_id,
     string $ticket_title,
     string $solution_html,
+    string $ticket_description_html = '',
     string $error = ''
 ): void {
     $title = $ticket_title !== '' ? $ticket_title : '(sem título)';
@@ -170,6 +176,10 @@ function abm_render_solution_form(
     $b .= '<div class="abm-ticket"><strong>#' . $ticket_id . '</strong> &mdash; '
         . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</div>';
 
+    if ($ticket_description_html !== '') {
+        $b .= '<label>Descrição do chamado</label>';
+        $b .= '<div class="abm-submission">' . $ticket_description_html . '</div>';
+    }
     if ($solution_html !== '') {
         $b .= '<label>Solução proposta</label>';
         $b .= '<div class="abm-submission">' . $solution_html . '</div>';
@@ -193,14 +203,16 @@ function abm_handle_validation(PluginApprovalbymailAction $action, string $hash)
     /** @var array $CFG_GLPI */
     global $DB, $CFG_GLPI;
 
-    $tv_id           = (int) ($action->fields['items_id'] ?? 0);
-    $tv              = new TicketValidation();
-    $tv_loaded       = $tv->getFromDB($tv_id);
-    $tickets_id      = 0;
-    $ticket_id       = 0;
-    $ticket_title    = '';
-    $submission_html = '';
-    $tv_status       = 0;
+    $tv_id            = (int) ($action->fields['items_id'] ?? 0);
+    $tv               = new TicketValidation();
+    $tv_loaded        = $tv->getFromDB($tv_id);
+    $tickets_id       = 0;
+    $ticket_id        = 0;
+    $ticket_title     = '';
+    $submission_html  = '';
+    $description_html = '';
+    $tv_status        = 0;
+    $show_description = PluginApprovalbymailConfig::isFeatureActive(PluginApprovalbymailConfig::SHOW_DESCRIPTION);
 
     if ($tv_loaded) {
         $tickets_id = (int) $tv->fields['tickets_id'];
@@ -214,6 +226,11 @@ function abm_handle_validation(PluginApprovalbymailAction $action, string $hash)
         if ($tkt->getFromDB($tickets_id)) {
             $ticket_id    = (int) $tkt->fields['id'];
             $ticket_title = (string) $tkt->fields['name'];
+            $desc         = (string) ($tkt->fields['content'] ?? '');
+            if ($show_description && $desc !== '') {
+                // SDB-6: descrição do chamado sanitizada antes de ir para tela.
+                $description_html = \Glpi\RichText\RichText::getSafeHtml($desc);
+            }
         }
     }
 
@@ -239,6 +256,7 @@ function abm_handle_validation(PluginApprovalbymailAction $action, string $hash)
                 $ticket_id,
                 $ticket_title,
                 $submission_html,
+                $description_html,
                 'Para reprovar, é obrigatório informar o motivo.'
             );
             return;
@@ -344,7 +362,7 @@ function abm_handle_validation(PluginApprovalbymailAction $action, string $hash)
         sprintf("op=action_get action_id=%d result=shown\n", (int) $action->fields['id'])
     );
 
-    abm_render_form($post_url, $csrf, $hash, $ticket_id, $ticket_title, $submission_html);
+    abm_render_form($post_url, $csrf, $hash, $ticket_id, $ticket_title, $submission_html, $description_html);
 }
 
 /* ============================================================================
@@ -356,15 +374,17 @@ function abm_handle_solution(PluginApprovalbymailAction $action, string $hash): 
     /** @var array $CFG_GLPI */
     global $DB, $CFG_GLPI;
 
-    $sol_id        = (int) ($action->fields['items_id'] ?? 0);
-    $sol           = new ITILSolution();
-    $sol_loaded    = $sol->getFromDB($sol_id) && (string) ($sol->fields['itemtype'] ?? '') === 'Ticket';
-    $tickets_id    = 0;
-    $ticket_id     = 0;
-    $ticket_title  = '';
-    $solution_html = '';
-    $sol_status    = 0;
-    $tech_id       = 0;
+    $sol_id           = (int) ($action->fields['items_id'] ?? 0);
+    $sol              = new ITILSolution();
+    $sol_loaded       = $sol->getFromDB($sol_id) && (string) ($sol->fields['itemtype'] ?? '') === 'Ticket';
+    $tickets_id       = 0;
+    $ticket_id        = 0;
+    $ticket_title     = '';
+    $solution_html    = '';
+    $sol_status       = 0;
+    $tech_id          = 0;
+    $description_html = '';
+    $show_description = PluginApprovalbymailConfig::isFeatureActive(PluginApprovalbymailConfig::SHOW_DESCRIPTION);
 
     if ($sol_loaded) {
         $tickets_id = (int) $sol->fields['items_id'];
@@ -378,6 +398,11 @@ function abm_handle_solution(PluginApprovalbymailAction $action, string $hash): 
         if ($tkt->getFromDB($tickets_id)) {
             $ticket_id    = (int) $tkt->fields['id'];
             $ticket_title = (string) $tkt->fields['name'];
+            $desc         = (string) ($tkt->fields['content'] ?? '');
+            if ($show_description && $desc !== '') {
+                // SDB-6: descrição do chamado sanitizada antes de ir para tela.
+                $description_html = \Glpi\RichText\RichText::getSafeHtml($desc);
+            }
         }
     }
 
@@ -404,6 +429,7 @@ function abm_handle_solution(PluginApprovalbymailAction $action, string $hash): 
                 $ticket_id,
                 $ticket_title,
                 $solution_html,
+                $description_html,
                 'Para recusar a solução, é obrigatório informar o motivo.'
             );
             return;
@@ -540,7 +566,7 @@ function abm_handle_solution(PluginApprovalbymailAction $action, string $hash): 
         sprintf("op=solution_get action_id=%d result=shown\n", (int) $action->fields['id'])
     );
 
-    abm_render_solution_form($post_url, $csrf, $hash, $ticket_id, $ticket_title, $solution_html);
+    abm_render_solution_form($post_url, $csrf, $hash, $ticket_id, $ticket_title, $solution_html, $description_html);
 }
 
 /* ============================================================================

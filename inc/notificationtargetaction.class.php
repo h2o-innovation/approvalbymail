@@ -96,26 +96,34 @@ class PluginApprovalbymailNotificationTargetAction extends NotificationTarget
             }
         }
 
-        $title = '';
+        $title       = '';
+        $description = '';
         if ($tickets_id > 0) {
             $tkt = new Ticket();
             if ($tkt->getFromDB($tickets_id)) {
                 $title = (string) ($tkt->fields['name'] ?? '');
+                if (PluginApprovalbymailConfig::isFeatureActive(PluginApprovalbymailConfig::SHOW_DESCRIPTION)) {
+                    // Conteúdo cru: o GLPI converte para HTML seguro ou texto
+                    // plano conforme o formato do e-mail (getDataForHtml/PlainText).
+                    $description = (string) ($tkt->fields['content'] ?? '');
+                }
             }
         }
 
-        $this->data['##approvalbymail.url##']         = $url;
-        $this->data['##approvalbymail.tickettitle##'] = $title;
+        $this->data['##approvalbymail.url##']               = $url;
+        $this->data['##approvalbymail.tickettitle##']       = $title;
+        $this->data['##approvalbymail.ticketdescription##'] = $description;
 
         Toolbox::logInFile(
             'approvalbymail',
             sprintf(
-                "op=addDataForTemplate event=%s action_id=%d itemtype=%s url_len=%d title_set=%d result=ok\n",
+                "op=addDataForTemplate event=%s action_id=%d itemtype=%s url_len=%d title_set=%d desc_len=%d result=ok\n",
                 $event,
                 (int) ($action->fields['id'] ?? 0),
                 $itemtype !== '' ? $itemtype : '-',
                 strlen($url),
-                $title !== '' ? 1 : 0
+                $title !== '' ? 1 : 0,
+                strlen($description)
             )
         );
     }

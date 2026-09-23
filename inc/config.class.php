@@ -14,6 +14,7 @@ class PluginApprovalbymailConfig extends CommonDBTM
     public const TICKET_SOLUTION   = 2;
     public const FOLLOWUP_PRIVATE  = 3; // is_active=1 => acompanhamento de auditoria privado
     public const LOGO             = 4; // URL da logo exibida na página de aprovação
+    public const SHOW_DESCRIPTION = 5; // is_active=1 => exibe a descrição do chamado na aprovação
 
     public $dohistory = false;
 

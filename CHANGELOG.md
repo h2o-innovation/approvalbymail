@@ -3,6 +3,19 @@
 Todas as mudanças relevantes deste plugin. Formato baseado em
 [Keep a Changelog](https://keepachangelog.com/), versionamento [SemVer](https://semver.org/).
 
+## [0.4.0-dev] - 2026-09-23
+
+### Added
+- **Descrição do chamado na aprovação:** a página pública e o e-mail de aprovação
+  (validação e solução) passam a exibir a descrição do chamado (`Ticket.content`),
+  com sanitização `RichText::getSafeHtml` na página e conversão automática para
+  HTML seguro / texto plano no e-mail (tag `##approvalbymail.ticketdescription##`).
+- Novo flag de configuração **"Mostrar descrição do chamado"** (padrão: ativo).
+
+### Changed
+- Versão de `0.3.0-dev` para `0.4.0-dev`; migração idempotente de configuração e
+  recriação dos modelos de notificação ao atualizar a versão.
+
 ## [0.1.0-rc] - 2026-06-09
 
 Primeiro release candidate: ciclo de validação completo e fechado nos dois sentidos.
