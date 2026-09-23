@@ -25,36 +25,51 @@ function plugin_approvalbymail_install(): bool
                 PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
+    }
 
-        // Seeds: validação (ON), solução (OFF — opt-in), followup privado (ON).
-        $DB->insert($config_table, [
-            'id'        => PluginApprovalbymailConfig::TICKET_VALIDATION,
-            'name'      => 'Ticket - Aprovação de Validação',
-            'content'   => 'Envia e-mail para aprovar/recusar a validação de chamado',
-            'is_active' => 1,
-            'date_mod'  => $now,
-        ]);
-        $DB->insert($config_table, [
-            'id'        => PluginApprovalbymailConfig::TICKET_SOLUTION,
-            'name'      => 'Ticket - Aprovação de Solução',
-            'content'   => 'Envia e-mail para o requerente aprovar/recusar a solução do chamado',
-            'is_active' => 0,
-            'date_mod'  => $now,
-        ]);
-        $DB->insert($config_table, [
-            'id'        => PluginApprovalbymailConfig::FOLLOWUP_PRIVATE,
-            'name'      => 'Acompanhamento de auditoria — privado',
-            'content'   => 'Sim = acompanhamento privado (só técnicos); Não = público',
-            'is_active' => 1,
-            'date_mod'  => $now,
-        ]);
-        $DB->insert($config_table, [
-            'id'        => PluginApprovalbymailConfig::LOGO,
-            'name'      => 'URL da Logo',
-            'content'   => '',
-            'is_active' => 1,
-            'date_mod'  => $now,
-        ]);
+    // Seeds + migração idempotente: garante cada linha de configuração sem
+    // sobrescrever escolhas já feitas pelo admin. validação (ON), solução
+    // (OFF — opt-in), followup privado (ON), logo (ON), descrição (ON).
+    foreach ([
+        PluginApprovalbymailConfig::TICKET_VALIDATION => [
+            'Ticket - Aprovação de Validação',
+            'Envia e-mail para aprovar/recusar a validação de chamado',
+            1,
+        ],
+        PluginApprovalbymailConfig::TICKET_SOLUTION => [
+            'Ticket - Aprovação de Solução',
+            'Envia e-mail para o requerente aprovar/recusar a solução do chamado',
+            0,
+        ],
+        PluginApprovalbymailConfig::FOLLOWUP_PRIVATE => [
+            'Acompanhamento de auditoria — privado',
+            'Sim = acompanhamento privado (só técnicos); Não = público',
+            1,
+        ],
+        PluginApprovalbymailConfig::LOGO => [
+            'URL da Logo',
+            '',
+            1,
+        ],
+        PluginApprovalbymailConfig::SHOW_DESCRIPTION => [
+            'Mostrar descrição do chamado',
+            'Exibe a descrição do chamado na página e no e-mail de aprovação',
+            1,
+        ],
+    ] as $config_id => [$name, $content, $is_active]) {
+        $row_exists = false;
+        foreach ($DB->request(['FROM' => $config_table, 'WHERE' => ['id' => $config_id]]) as $_row) {
+            $row_exists = true;
+        }
+        if (!$row_exists) {
+            $DB->insert($config_table, [
+                'id'        => $config_id,
+                'name'      => $name,
+                'content'   => $content,
+                'is_active' => $is_active,
+                'date_mod'  => $now,
+            ]);
+        }
     }
 
     // --- Tabela de ações tokenizadas ---
@@ -77,27 +92,23 @@ function plugin_approvalbymail_install(): bool
         );
     }
 
-    // --- Garante linha da logo (migração) ---
-    $logo_exists = false;
-    foreach ($DB->request(['FROM' => $config_table, 'WHERE' => ['id' => PluginApprovalbymailConfig::LOGO]]) as $_row) {
-        $logo_exists = true;
-    }
-    if (!$logo_exists) {
-        $DB->insert($config_table, [
-            'id'        => PluginApprovalbymailConfig::LOGO,
-            'name'      => 'URL da Logo',
-            'content'   => '',
-            'is_active' => 1,
-            'date_mod'  => $now,
-        ]);
-    }
-
     // --- Modelos de notificação (S2) ---
     if (!PluginApprovalbymailNotification::installNotificationModels()) {
         return false;
     }
 
     return true;
+}
+
+/**
+ * Migração em atualização de versão. Reexecuta a instalação idempotente para
+ * criar linhas de configuração novas e recriar os modelos de notificação
+ * (o template ganha o bloco de descrição). Atenção: recriação do modelo
+ * descarta customizações feitas no template pelo admin.
+ */
+function plugin_approvalbymail_upgrade(string $old_version): bool
+{
+    return plugin_approvalbymail_install();
 }
 
 function plugin_approvalbymail_uninstall(): bool
